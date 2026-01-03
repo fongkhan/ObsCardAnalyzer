@@ -6,7 +6,11 @@ from collections import deque
 from pathlib import Path
 import os
 
-import cv2
+try:
+    import cv2  # type: ignore
+except Exception:
+    cv2 = None
+
 import requests
 
 from card_detector import detect_cards_from_frame
@@ -56,12 +60,66 @@ class Worker(threading.Thread):
             except Exception:
                 data = []
         data.insert(0, record)
-        with open(RESULTS_FILE, 'w', encoding='utf-8') as f:
-            json.dump(data[:500], f, indent=2)
-
-
 def main(source=0, server_url=None, game_hint='auto'):
-    cap = cv2.VideoCapture(int(source) if str(source).isdigit() else source)
+    if cv2 is None:
+        raise RuntimeError("OpenCV (cv2) is not installed. Install it with: pip install opencv-python")
+
+    def _open_capture(src):
+        """Try to open a VideoCapture for the given src.
+
+        For numeric camera indexes we attempt the default backend first and fall back to DirectShow (CAP_DSHOW).
+        We also try to read one frame to verify the capture is producing frames.
+        """
+        is_index = str(src).isdigit()
+        # try backends for camera index
+        if is_index:
+            idx = int(src)
+            backends = [None]
+            # prefer DirectShow fallback on Windows
+            try:
+                backends.append(cv2.CAP_DSHOW)
+            except Exception:
+                pass
+            for b in backends:
+                try:
+                    cap = cv2.VideoCapture(idx) if b is None else cv2.VideoCapture(idx, b)
+                except Exception:
+                    cap = None
+                if cap is None:
+                    continue
+                # give the camera a moment and try to grab a frame
+                time.sleep(0.1)
+                ret, _ = cap.read()
+                if ret:
+                    return cap
+                try:
+                    cap.release()
+                except Exception:
+                    pass
+            # last attempt: open without special backend
+            return cv2.VideoCapture(idx)
+
+        # non-index: treat as file or stream URL
+        try:
+            cap = cv2.VideoCapture(src)
+            time.sleep(0.05)
+            ret, _ = cap.read()
+            if ret:
+                return cap
+            return cap
+        except Exception:
+            return None
+
+    cap = _open_capture(source)
+    if cap is None or not getattr(cap, 'isOpened', lambda: False)():
+        raise RuntimeError(
+            f"Could not open video source '{source}'.\n"
+            "- If this is a camera index, try a different index (0, 1, ...).\n"
+            "- Ensure no other application (OBS, Teams, Browser) is using the camera.\n"
+            "- On Windows, try running with admin privileges or allow camera access in Settings.\n"
+            "- You can also pass a path to a video file instead of a camera index."
+        )
+
     queue = deque()
     client = CardmarketClient()
     worker = Worker(queue, client, server_url=server_url, game_hint=game_hint)

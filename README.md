@@ -39,3 +39,17 @@ Notes & next steps
 - Cardmarket client is currently a stub — you should provide API credentials and implement real HTTP logic in `src/cardmarket_client.py`.
 - Detection is a simple contour-based approach; for improved accuracy use an object detector (YOLO/Detectron) trained on card images.
 - OCR quality depends on the card artwork and fonts. Consider template matching, a custom OCR model, or sending cropped names to an external OCR provider.
+
+Additional notes
+
+- PokéTCG API: this prototype supports PokéTCG via the official SDK `pokemontcgsdk` or via direct REST as fallback. To use the SDK, set your API key in the environment variable `POKEMON_TCG_KEY` or pass it into the `CardmarketClient` constructor. Example:
+
+```powershell
+$env:POKEMON_TCG_KEY = 'your-key-here'
+python src/main.py --game pokemon
+```
+
+- CLI `--game` flag: when running `src/main.py` you can pass `--game magic` or `--game pokemon` to prefer Scryfall (Magic) or PokéTCG respectively. The default `--game auto` will try Magic first and fall back to Pokemon.
+
+- Caching: API results are cached in `src/card_cache.json` to reduce repeated lookups.
+

@@ -1,6 +1,8 @@
 import os
 import time
+import json
 import requests
+from pathlib import Path
 from requests.exceptions import RequestException
 from urllib.parse import quote_plus
 
@@ -44,6 +46,15 @@ class CardmarketClient:
             except Exception:
                 # ignore SDK config failures and fall back to requests method
                 pass
+        # simple persistent cache (name+game -> result)
+        self._cache_path = Path(__file__).resolve().parent / 'card_cache.json'
+        self._cache = {}
+        try:
+            if self._cache_path.exists():
+                with open(self._cache_path, 'r', encoding='utf-8') as f:
+                    self._cache = json.load(f)
+        except Exception:
+            self._cache = {}
 
     def lookup_by_name(self, name: str, game: str | None = None) -> dict:
         """Lookup a card by name. If `game` is provided ('magic' or 'pokemon') it queries that API.
@@ -64,6 +75,19 @@ class CardmarketClient:
         if s.get("found"):
             return s
         return self._lookup_pokemon(name)
+
+    def _cache_get(self, name: str, game: str | None):
+        key = f"{(game or 'auto')}::{name.strip().lower()}"
+        return self._cache.get(key)
+
+    def _cache_set(self, name: str, game: str | None, value: dict):
+        key = f"{(game or 'auto')}::{name.strip().lower()}"
+        try:
+            self._cache[key] = value
+            with open(self._cache_path, 'w', encoding='utf-8') as f:
+                json.dump(self._cache, f, indent=2)
+        except Exception:
+            pass
 
     def _lookup_scryfall(self, name: str) -> dict:
         try:

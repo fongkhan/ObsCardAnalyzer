@@ -27,7 +27,9 @@ _overlay_html = """
     <title>Card Overlay</title>
     <style>
       body { background: rgba(0,0,0,0); color: white; font-family: Arial, sans-serif }
-      .card { background: rgba(0,0,0,0.6); padding: 8px; border-radius: 6px; margin: 6px }
+      .card { background: rgba(0,0,0,0.6); padding: 8px; border-radius: 6px; margin: 6px; display:flex; gap:8px; align-items:center }
+      .card img { max-height:80px; border-radius:4px }
+      .meta { display:flex; flex-direction:column }
     </style>
   </head>
   <body>
@@ -40,7 +42,10 @@ _overlay_html = """
         container.innerHTML = '';
         for (const item of json.slice(0,5)){
           const el = document.createElement('div'); el.className='card';
-          el.innerHTML = `<strong>${item.name||'?'}</strong><div>${item.set||''}</div><div>${item.price||''}</div><div style='font-size:small'>${item.notes||''}</div>`;
+          const imgHtml = item.image_url ? `<img src="${item.image_url}"/>` : '';
+          const status = item.found === false ? `<div style="color:salmon">Lookup failed: ${item.error||'unknown'}</div>` : '';
+          const details = `<div class='meta'><strong>${item.name||'?'}</strong><div>${item.set||''} <span style='opacity:0.8'>${item.game||''}</span></div><div>${item.rarity||''}</div><div style='font-size:small'>${item.oracle_text||item.types||''}</div>${status}</div>`;
+          el.innerHTML = imgHtml + details;
           container.appendChild(el);
         }
       }

@@ -35,7 +35,20 @@ def detect_cards_from_frame(frame, min_area=5000):
         approx = cv2.approxPolyDP(c, 0.02 * peri, True)
         if len(approx) == 4:
             pts = approx.reshape(4, 2)
-            warped = four_point_transform(orig, pts)
+            # filter by aspect ratio (width / height) - many cards are roughly portrait
+            # compute bounding rect to estimate ratio after ordering
+            try:
+                warped = four_point_transform(orig, pts)
+            except Exception:
+                continue
+            h, w = warped.shape[:2]
+            if h == 0:
+                continue
+            ratio = float(w) / float(h)
+            # typical trading card is around 0.63 (width/height) when portrait; accept a broad range
+            if not (0.4 <= ratio <= 1.5):
+                # still allow landscape cards; this filtering reduces false positives
+                pass
             cards.append((warped, pts))
     return cards
 
