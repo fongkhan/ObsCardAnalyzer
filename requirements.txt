@@ -1,0 +1,7 @@
+opencv-python
+flask
+flask-cors
+pytesseract
+numpy
+requests
+scikit-image
